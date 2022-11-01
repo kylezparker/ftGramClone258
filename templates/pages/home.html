@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+
+
+{% block title %}
+home
+{% endblock title %}
+
+
+{% block content %}
+<div class='row text-center'>
+    <div class='col mb-2'>
+        <h1>Welcome to faceTwitterGram</h1>
+    </div>
+</div>
+
+<div class='row mb-3'>
+    <div class="col-md-4 mx-auto col-10">
+        <form class="form" id='share-create-form' method="POST" action="/create-share">
+            {% csrf_token %}
+            <div class="d-none alert alert-danger" id="share-create-form-error"></div>
+            <input type="hidden" value="/" name="next" />
+            <textarea required='required' class="form-control" name="content" placeholder="Your tweet..."></textarea>
+            <button type="submit" class="btn btn-primary">Share</button>
+        </form>
+    </div>
+</div>
+
+<div class="row" id="shares">
+    Loading...
+</div>
+<script>
+
+    function handleShareFormError(msg, display) {
+        var myErrorDiv = document.getElementById("share-create-form-error");
+        if (display === true) {
+            // show error
+            myErrorDiv.setAttribute("class", "d-block alert alert-danger");
+            // msg doesnt actually display, will replace with react
+            myErrorDiv.innertText = msg
+        } else {
+            // hide error
+            myErrorDiv.setAttribute("class", "d-none alert alert-danger");
+        }
+    }
+    const sharesContainerElement = document.getElementById("shares");   // get element. pass by reference
+
+    function handleShareCreateFormDidSubmit(event) {
+        event.preventDefault();
+        const myForm = event.target;
+        const myFormData = new FormData(myForm);
+        const url = myForm.getAttribute("action");
+        const method = myForm.getAttribute("method");
+        const xhr1 = new XMLHttpRequest();
+        const responseType = "json";
+        xhr1.responseType = responseType;
+        // console.log(endpoint, method)
+        xhr1.open(method, url);
+        xhr1.setRequestHeader("HTTP_X_REQUESTED_WITH", "XMLHttpRequest");
+        xhr1.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+        xhr1.onload = function () {
+            if (xhr1.status === 201) {
+                handleShareFormError("", false)
+                const newShareJson = xhr1.response;
+                const newShareElement = formatShareElement(newShareJson);
+                // const newShareJson = JSON.parse(newShare) // dont need because of responseType=json
+                // console.log(newShareJson.likes)
+                // console.log(newShareElement)
+                const ogHtml = sharesContainerElement.innerHTML;
+                // console.log(xhr1.status, serverResponse)
+
+                sharesContainerElement.innerHTML = newShareElement + ogHtml;
+                myForm.reset();
+            } else if (xhr1.status === 400) {
+                const errorJson = xhr1.response;
+                const contentError = errorJson.content;
+                // console.log(errorJson.content)
+                let contentErrorMsg;
+                if (contentError) {
+                    contentErrorMsg = errorJson.content;
+                    if (contentErrorMsg) {
+                        handleShareFormError(contentErrorMsg, true)
+                    } else {
+                        alert("An error occured. Please try again.");
+                    }
+
+                } else {
+                    alert("An error occured. Please try again.")
+                }
+                console.log(contentErrorMsg);
+                // const contentError = errorJson.content;
+                // console.log(errorJson.content)
+                // let contentErrorMsg;
+                // if (contentError) {
+                //     contentErrorMsg = contentError[0];
+                // } else {
+                //     alert("An error occured. Please try again.");
+                // }
+                // console.log(contentErrorMsg);
+                // if (contentErrorMsg) {
+                //     handleShareFormError(contentErrorMsg, true)
+                // } else {
+                //     alert("An error occured. Please try again.")
+                // }
+                // console.log(contentErrorMsg)
+
+
+                //     } else {
+                //         alert("An error occured. Please try again.")
+                //     }
+                //     console.log(contentErrorMsg)
+
+                //     if (contentErrorMsg) {
+                //         handleShareFormError(contentErrorMsg, true)
+                //     } else {
+                //         alert("An error occured. Please try again")
+                //     }
+                // } else {
+                //     alert("An error occured. Please try again")
+                // 
+                // console.log(contentErrorMsg)
+
+            } else if (xhr1.status === 500) {
+                alert("There was a server error.");
+            }
+        }
+        xhr1.onerror = function () {
+            alert("An error occurred. PLease try again later.");
+        }
+        xhr1.send(myFormData);
+        // for (var myItem of myFormData.entries()) {
+        //     console.log(myItem)
+        // }
+        // console.log(event)
+    }
+
+
+    // will use to create event listener
+    const shareCreateFormElement = document.getElementById("share-create-form");
+
+    shareCreateFormElement.addEventListener("submit", handleShareCreateFormDidSubmit);
+
+
+
+
+
+    // will help eventually dynamically load shares
+    function loadShares(sharesElement) {
+        const xhr = new XMLHttpRequest();
+        const method = 'GET';
+        const url = "/friends";
+        const responseType = "json";
+        xhr.responseType = responseType;
+        xhr.open(method, url);
+        xhr.onload = function () {
+            const serverResponse = xhr.response;
+            const listedItems = serverResponse.response;
+            var finalShareStr = "";
+            var i;
+            for (i = 0; i < listedItems.length; i++) {
+                // console.log(i)
+                // console.log(listedItems[i])
+                var shareObj = listedItems[i];
+                var currentItem = formatShareElement(shareObj);
+                finalShareStr += currentItem;
+            }
+            sharesElement.innerHTML = finalShareStr;
+        }// console.log(listedItems);
+        xhr.send();
+    }
+
+    loadShares(sharesContainerElement);
+
+
+
+
+
+
+    function handleDidLike(share_id, currentCount) {
+        console.log(share_id, currentCount);
+        return;
+    }
+
+    function LikeBtn(share) {
+        return "<button class='btn btn-primary btn-sm' onclick=handleDidLike(" + share.id + ","
+            + share.likes + ")>" + share.likes + " Likes</button>";
+    }
+    function formatShareElement(share) {
+        var formattedShare = "<div class='col-12 col-md-10 mx-auto border rounded py-3 mb-4 share' id='share-" + share.id + "'><p>"
+            + share.content + "</p><div class='btn-group'>" + LikeBtn(share) + "</div></div>";
+        return formattedShare;
+    }
+
+
+    // xhr.responseType = responseType;
+    // xhr.open(method, url)
+    // xhr.onload = function () {
+    //     const serverResponse = xhr.response;
+    //     const listedItems = serverResponse.response;
+    //     var finalShareStr = "";
+    //     var i;
+    //     for (i = 0; i < listedItems.length; i++) {
+    //         // console.log(i)
+    //         // console.log(listedItems[i])
+    //         var shareObj = listedItems[i];
+    //         var currentItem = formatShareElement(shareObj);
+    //         finalShareStr += currentItem;
+    //     }
+    //     sharesElement.innerHTML = finalShareStr;
+    //     // console.log(listedItems);
+    // }
+    // xhr.send();
+
+</script>
+{% endblock content %}
